@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-surface text-slate-100 antialiased;
+}
+
+.panel {
+  @apply rounded-xl border border-surface-border bg-surface-raised shadow-lg;
+}
+
+.status-pill {
+  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide;
+}
