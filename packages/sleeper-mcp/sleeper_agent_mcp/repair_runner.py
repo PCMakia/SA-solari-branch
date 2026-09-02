@@ -13,6 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from sleeper_agent_mcp.overseer_controls import resolve_repair_timeout
+from sleeper_agent_mcp.repair_cloud_api import (
+    CloudApiError,
+    git_info_from_api,
+    run_cloud_repair_via_api,
+)
 from sleeper_agent_mcp.repair_git import (
     RepairGitContext,
     build_repair_git_context,
@@ -272,6 +277,7 @@ def execute_cloud_repair_turn(
     repair_model: str,
     repair_mode: str,
     api_key: str,
+    repair_timeout_seconds: int | None = None,
 ) -> RepairTurnResult:
     git_context, git_error = build_repair_git_context(workspace_cwd, failing_file_path)
     if git_context is None:
@@ -292,36 +298,17 @@ def execute_cloud_repair_turn(
         git_context=git_context,
     )
 
+    timeout_seconds = resolve_repair_timeout(repair_timeout_seconds)
     try:
-        from cursor_sdk import Agent, AgentOptions, CloudAgentOptions, CloudRepository, CursorAgentError
-    except ImportError:
-        return RepairTurnResult(
-            status="sdk_error",
-            outcome="FAILED",
-            message="cursor-sdk is not installed. pip install cursor-sdk",
-            sdk_failed=True,
-            workspace_cwd=workspace_cwd,
+        result = run_cloud_repair_via_api(
+            prompt=prompt,
+            repo_url=git_context.repo_url,
+            starting_ref=git_context.starting_ref,
+            api_key=api_key,
+            model=repair_model,
+            timeout_seconds=timeout_seconds,
         )
-
-    repo = CloudRepository(
-        url=git_context.repo_url,
-        starting_ref=git_context.starting_ref,
-    )
-    cloud_options = CloudAgentOptions(
-        repos=[repo],
-        work_on_current_branch=True,
-    )
-
-    try:
-        result = Agent.prompt(
-            prompt,
-            AgentOptions(
-                api_key=api_key,
-                model=repair_model,
-                cloud=cloud_options,
-            ),
-        )
-    except CursorAgentError as err:
+    except CloudApiError as err:
         return RepairTurnResult(
             status="sdk_error",
             outcome="FAILED",
@@ -338,25 +325,35 @@ def execute_cloud_repair_turn(
             workspace_cwd=workspace_cwd,
         )
 
+    finished = result.status == "FINISHED"
     sync_error: str | None = None
-    status = str(getattr(result, "status", "unknown"))
-    if status == "finished":
+    if finished:
         sync_paths: list[str] = []
         if git_context.failing_file_rel:
             sync_paths.append(git_context.failing_file_rel)
         synced, sync_error = sync_cloud_repair_to_workspace(
             git_context=git_context,
-            git_info=getattr(result, "git", None),
+            git_info=git_info_from_api(result.git),
             paths=sync_paths,
         )
         if not synced and sync_error:
-            return _repair_turn_result_from_sdk(
-                result,
-                workspace_cwd=workspace_cwd,
-                sync_error=sync_error,
-            )
+            finished = False
 
-    return _repair_turn_result_from_sdk(result, workspace_cwd=workspace_cwd)
+    outcome = "SUCCESS" if finished and not sync_error else "FAILED"
+    message = result.result
+    if sync_error:
+        message = f"{message}\nSync error: {sync_error}" if message else f"Sync error: {sync_error}"
+
+    return RepairTurnResult(
+        status=result.status.lower(),
+        run_id=result.run_id,
+        agent_id=result.agent_id,
+        message=message,
+        sdk_failed=not finished or bool(sync_error),
+        finished=finished and not sync_error,
+        workspace_cwd=workspace_cwd,
+        outcome=outcome,
+    )
 
 
 def execute_repair_turn_in_process(payload: dict[str, Any]) -> RepairTurnResult:
@@ -372,6 +369,7 @@ def execute_repair_turn_in_process(payload: dict[str, Any]) -> RepairTurnResult:
     repair_model = resolve_repair_model(payload.get("repair_model"))
     repair_mode = resolve_repair_mode(payload.get("repair_mode"))
     repair_runtime = resolve_repair_runtime(payload.get("repair_runtime"))
+    repair_timeout_seconds = payload.get("repair_timeout_seconds")
 
     scoped_file = scope_failing_file_path(
         workspace_cwd,
@@ -399,6 +397,7 @@ def execute_repair_turn_in_process(payload: dict[str, Any]) -> RepairTurnResult:
             repair_model=repair_model,
             repair_mode=repair_mode,
             api_key=api_key,
+            repair_timeout_seconds=repair_timeout_seconds,
         )
 
     return execute_local_repair_turn(
