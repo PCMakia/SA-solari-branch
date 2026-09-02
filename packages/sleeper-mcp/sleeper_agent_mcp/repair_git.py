@@ -102,6 +102,13 @@ def path_relative_to_git_root(git_root: Path, file_path: str | Path | None) -> s
         return None
 
 
+def normalize_repo_url(repo_url: str) -> str:
+    stripped = repo_url.strip()
+    if stripped.startswith(("http://", "https://")):
+        return stripped
+    return f"https://{stripped.lstrip('/')}"
+
+
 def build_repair_git_context(
     workspace_cwd: str | Path,
     failing_file_path: str | None,
@@ -154,7 +161,9 @@ def sync_cloud_repair_to_workspace(
 
     branch_info = branches[0]
     branch = getattr(branch_info, "branch", None) or ""
-    repo_url = getattr(branch_info, "repo_url", None) or git_context.repo_url
+    repo_url = normalize_repo_url(
+        getattr(branch_info, "repo_url", None) or git_context.repo_url
+    )
     if not branch:
         return False, "Cloud repair returned git metadata without a branch name."
 
