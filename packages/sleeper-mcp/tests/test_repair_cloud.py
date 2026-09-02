@@ -16,6 +16,7 @@ from sleeper_agent_mcp.repair_git import (
     sync_cloud_repair_to_workspace,
 )
 from sleeper_agent_mcp.repair_runner import (
+    RepairTurnResult,
     build_cloud_repair_prompt,
     execute_cloud_repair_turn,
     execute_repair_turn_in_process,
@@ -126,12 +127,11 @@ def test_execute_repair_turn_dispatches_cloud(tmp_path, monkeypatch):
     ws = str(tmp_path.resolve())
     monkeypatch.setattr(
         "sleeper_agent_mcp.repair_runner.execute_cloud_repair_turn",
-        lambda **_kwargs: SimpleNamespace(
+        lambda **_kwargs: RepairTurnResult(
             status="finished",
             outcome="SUCCESS",
             finished=True,
-            sdk_failed=False,
-            to_dict=lambda: {"status": "finished", "outcome": "SUCCESS"},
+            workspace_cwd=ws,
         ),
     )
     monkeypatch.setattr("sleeper_agent_mcp.repair_runner._resolve_api_key", lambda: "key")
