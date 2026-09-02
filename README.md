@@ -1,3 +1,85 @@
+# Sleeper AFK Overseer
+
+**Sleeper AFK Overseer** is a full-stack agent demo on [Solari](https://getsolari.com): give one
+initiate command from Cursor, step away, and the overseer runs your task queue on Solari
+sandboxes and browsers while managing retries and surfacing `NEEDS_REPAIR` when code needs a fix.
+
+This repo is a monorepo:
+
+| Path | Role |
+|------|------|
+| [packages/sleeper-mcp](packages/sleeper-mcp) | MCP server — queue, Solari/Docker backends, `start_afk_overseer` |
+| [apps/overseer-dashboard](apps/overseer-dashboard) | Next.js UI — live queue, terminal output, replay placeholder |
+| [examples/](examples) | Upstream Solari cookbook quickstarts |
+| [docs/OVERSEER.md](docs/OVERSEER.md) | Architecture and MCP tool reference |
+| [docs/TESTING.md](docs/TESTING.md) | Step-by-step test guide |
+| [docs/mcp.json.example](docs/mcp.json.example) | Copy-paste Cursor MCP config |
+
+## Quick start
+
+### 1. Install MCP dependencies
+
+```bash
+cd packages/sleeper-mcp
+pip install -r requirements.txt
+```
+
+### 2. Add your Solari API key to Cursor
+
+Copy [docs/mcp.json.example](docs/mcp.json.example) into `%USERPROFILE%\.cursor\mcp.json`
+(merge with any existing servers). Replace `slr_live_YOUR_KEY_HERE` with your key from
+[console.getsolari.com](https://console.getsolari.com).
+
+The key lives in the MCP server's `env` block — **not** in the Next.js app (unless you add replay routes later).
+
+### 3. Restart Cursor
+
+Reload MCP so `sleeper-agent-mcp` picks up the new config.
+
+### 4. Start the dashboard
+
+```bash
+cd apps/overseer-dashboard
+npm install
+npm run dev
+```
+
+Open http://localhost:3000
+
+### 5. Start an overseer session from Cursor
+
+Ask the agent to call `start_afk_overseer` with a task list, for example:
+
+```json
+{
+  "tasks": [
+    { "id": "hello", "command": "python", "args": ["-c", "print('overseer ok')"] },
+    {
+      "id": "smoke",
+      "runtime": "browser",
+      "command": "python",
+      "args": [],
+      "url": "https://example.com"
+    }
+  ],
+  "label": "demo"
+}
+```
+
+Watch progress on the dashboard and in `get_queue_status`.
+
+Full testing steps: [docs/TESTING.md](docs/TESTING.md)
+
+Pre-publish verification: [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md)
+
+Repair-loop demo (intentional failure → fix → resume): [docs/REPAIR_LOOP_DEMO.md](docs/REPAIR_LOOP_DEMO.md)
+
+```bash
+python packages/sleeper-mcp/scripts/preflight.py --live
+```
+
+---
+
 # Solari Cookbook
 
 Short, runnable examples for [Solari](https://getsolari.com) — cloud browsers,
@@ -38,8 +120,7 @@ past. Copy one into your project and change the parts you care about.
 Each directory is self-contained.
 
 ```bash
-git clone https://github.com/solari-sdk/solari-cookbook.git
-cd solari-cookbook/examples/browser-quickstart-ts
+cd examples/browser-quickstart-ts
 
 npm install                          # or: pip install -r requirements.txt
 export SOLARI_API_KEY=slr_live_...   # grab one at console.getsolari.com
