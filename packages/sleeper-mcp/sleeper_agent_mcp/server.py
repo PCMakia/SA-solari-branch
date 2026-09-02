@@ -53,7 +53,7 @@ mcp = MCPServer("sleeper-agent-mcp")
 _STARTUP_MCP_ENV = apply_global_mcp_env_on_startup()
 
 # Bump when changing tool schemas so you can confirm Cursor loaded new code.
-SERVER_BUILD = "2026-09-02-overseer-v10"
+SERVER_BUILD = "2026-09-02-overseer-v11"
 
 _state = StateManager()
 _background_threads: dict[str, threading.Thread] = {}
