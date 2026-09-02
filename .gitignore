@@ -9,3 +9,7 @@ screenshot.png
 
 # overseer runtime artifacts (local test runs)
 canary_test/.overseer_*
+
+# local docs and helper scripts (not versioned)
+docs/
+scripts/
