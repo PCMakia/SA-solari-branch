@@ -49,14 +49,14 @@ def test_write_failure_artifact(tmp_path):
         failed_task_id="step-2",
         retry_count=4,
         max_retries=3,
-        last_error={"stderr": "boom"},
-        repair_history=[{"attempt": 1}],
+        last_error={"stderr": "boom", "traceback": "Traceback..."},
+        repair_history=[{"attempt": 1, "cursor_response": "fixed it"}],
     )
     assert path.name == FAILURE_FILE_NAME
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["status"] == "ABORTED"
-    assert payload["failed_task_id"] == "step-2"
-    assert payload["repair_history"][0]["attempt"] == 1
+    text = path.read_text(encoding="utf-8")
+    assert "# Overseer Failure Report" in text
+    assert "step-2" in text
+    assert "fixed it" in text
 
 
 def test_write_stop_artifact(tmp_path):

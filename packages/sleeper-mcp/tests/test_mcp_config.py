@@ -50,7 +50,7 @@ def test_reload_applies_env_from_global_config(global_mcp_json, monkeypatch):
     assert os.environ["SLEEPER_REPAIR_MODEL"] == "auto"
 
 
-def test_reload_reports_missing_cursor_api_key(global_mcp_json):
+def test_reload_reports_missing_solari_api_key(global_mcp_json):
     global_mcp_json.write_text(
         json.dumps(
             {
@@ -69,7 +69,6 @@ def test_reload_reports_missing_cursor_api_key(global_mcp_json):
     result = mcp_config.reload_global_mcp_env(apply=True)
 
     assert result.status == "RELOADED_WITH_WARNINGS"
-    assert "CURSOR_API_KEY" in result.missing_required
     assert "SOLARI_API_KEY" in result.missing_required
 
 
