@@ -6,9 +6,19 @@ __pycache__/
 .venv/
 venv/
 screenshot.png
+*.egg-info/
+.pytest_cache/
 
-# overseer runtime artifacts (local test runs)
+# overseer / sleeper runtime artifacts (local test runs)
 canary_test/.overseer_*
+canary_test/.sleeper/
+canary_test/.sleeper_input
+canary_test/step1_complete.txt
+canary_test2/.sleeper/
+canary_test2/.sleeper_input
+canary_test2/step1_complete.txt
+**/.sleeper/
+**/.sleeper_input
 
 # local docs and helper scripts (not versioned)
 docs/
