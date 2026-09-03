@@ -1,12 +1,14 @@
 # Sleeper Overseer Dashboard
 
-Web UI for the **Sleeper AFK Overseer** monorepo. Polls `~/.sleeper_agent/queue_state.json`
+Web UI for the **Sleeper AFK Overseer**. Polls `~/.sleeper_agent/queue_state.json`
 and shows queue progress, live terminal output, and a placeholder for Solari browser replays.
 
 ## Prerequisites
 
 - Node.js 18+
-- MCP server configured — see [../../docs/mcp.json.example](../../docs/mcp.json.example)
+- Global Cursor MCP configured (`sleeper-agent-mcp` in `~/.cursor/mcp.json`) — see
+  [../../packages/sleeper-mcp/install/mcp.json.example](../../packages/sleeper-mcp/install/mcp.json.example)
+  or run [../../packages/sleeper-mcp/install/install_cursor_sleeper.ps1](../../packages/sleeper-mcp/install/install_cursor_sleeper.ps1)
 - An active session via `start_afk_overseer` from Cursor
 
 ## Setup
@@ -20,6 +22,8 @@ npm run dev
 
 Open http://localhost:3000
 
+The Sleeper daemon may also start this app automatically when a session begins.
+
 ## Environment (`.env.local`)
 
 | Variable | Default | Description |
@@ -28,7 +32,7 @@ Open http://localhost:3000
 | `SLEEPER_BACKEND` | `docker` | Header badge only — set `solari` to match MCP |
 | `SOLARI_API_KEY` | — | Reserved for future replay routes (not required today) |
 
-**Solari API key for task execution goes in Cursor `mcp.json`, not here.** See [../../docs/TESTING.md](../../docs/TESTING.md).
+**Solari API key for task execution goes in Cursor `mcp.json`, not here.**
 
 ## Architecture
 
@@ -44,6 +48,6 @@ Solari Sandbox / Browser              │
 Next.js /api/state ────────────────────┘
 ```
 
-## Testing
+## Health check
 
-See [../../docs/TESTING.md](../../docs/TESTING.md).
+`GET /api/health` returns `{ "status": "ok" }` for the daemon’s readiness probe.
