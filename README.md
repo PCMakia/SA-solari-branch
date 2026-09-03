@@ -1,42 +1,97 @@
 # Sleeper AFK Overseer
 
-**Sleeper AFK Overseer** is a full-stack agent demo on [Solari](https://getsolari.com): give one
+You can now give Cursor one command, and walk away to sleep, gym, do other stuff away from computer.
+
+  
+**Sleeper AFK Overseer** is a full-stack agent of [Solari](https://getsolari.com): give one
 initiate command from Cursor, step away, and the overseer runs your task queue on Solari
-sandboxes and browsers while managing retries and surfacing `NEEDS_REPAIR` when code needs a fix.
+sandboxes and browsers while managing retries and surfacing `NEEDS_REPAIR` when code needs a fix.  
 
 This repo is a monorepo:
 
-| Path | Role |
-|------|------|
-| [packages/sleeper-mcp](packages/sleeper-mcp) | MCP server — queue, Solari/Docker backends, `start_afk_overseer` |
-| [apps/overseer-dashboard](apps/overseer-dashboard) | Next.js UI — live queue, terminal output, replay placeholder |
-| [examples/](examples) | Upstream Solari cookbook quickstarts |
-| [docs/OVERSEER.md](docs/OVERSEER.md) | Architecture and MCP tool reference |
-| [docs/TESTING.md](docs/TESTING.md) | Step-by-step test guide |
-| [docs/mcp.json.example](docs/mcp.json.example) | Copy-paste Cursor MCP config |
 
-## Quick start
+| Path                                               | Role                                                             |
+| -------------------------------------------------- | ---------------------------------------------------------------- |
+| [packages/sleeper-mcp](packages/sleeper-mcp)       | MCP server — queue, Solari/Docker backends, `start_afk_overseer` |
+| [packages/sleeper-daemon](packages/sleeper-daemon) | Local watch daemon — pastes kickoff/repair into Cursor chat      |
+| [apps/overseer-dashboard](apps/overseer-dashboard) | Next.js UI — live queue, terminal output                         |
+| [examples/](examples)                              | Upstream Solari cookbook quickstarts                             |
 
-### 1. Install MCP dependencies
 
-```bash
-cd packages/sleeper-mcp
-pip install -r requirements.txt
+## How to use with Cursor
+
+Install **this repo once** on your machine. After that, open **any** project in Cursor
+(Agent window or IDE) and run task lists with Sleeper — you do **not** copy Sleeper
+into each app repo.
+
+### One-time setup
+
+```powershell
+git clone <this-repo> C:/tools/Solari
+cd C:/tools/Solari
+powershell -ExecutionPolicy Bypass -File packages/sleeper-mcp/install/install_cursor_sleeper.ps1 -SolariApiKey "slr_live_..."
 ```
 
-### 2. Add your Solari API key to Cursor
+That wires global `~/.cursor/mcp.json` (`SLEEPER_HOME` = this clone) and installs a
+Cursor rule so agents always pass your **open project** as `workspace`. Then reload MCP
+(Settings → MCP → toggle `sleeper-agent-mcp`).
 
-Copy [docs/mcp.json.example](docs/mcp.json.example) into `%USERPROFILE%\.cursor\mcp.json`
-(merge with any existing servers). Replace `slr_live_YOUR_KEY_HERE` with your key from
-[console.getsolari.com](https://console.getsolari.com).
+Manual alternative: merge [packages/sleeper-mcp/install/mcp.json.example](packages/sleeper-mcp/install/mcp.json.example)
+into `%USERPROFILE%\.cursor\mcp.json`, set `SLEEPER_HOME` / `cwd` / `PYTHONPATH` to your clone,
+set `SOLARI_API_KEY`, and copy [packages/sleeper-mcp/install/sleeper-afk.mdc](packages/sleeper-mcp/install/sleeper-afk.mdc)
+to `%USERPROFILE%\.cursor\rules\`.
 
-The key lives in the MCP server's `env` block — **not** in the Next.js app (unless you add replay routes later).
+### Whenever you have a task list
 
-### 3. Restart Cursor
+1. Open the project you want to run against in Cursor.
+2. Give the agent a **Sleeper-call** (chat, or write `.sleeper_input` in that project):
 
-Reload MCP so `sleeper-agent-mcp` picks up the new config.
+```text
+"""Sleeper-call
+[
+  {"id": "step-1", "command": "python", "args": ["path/to/script.py"]},
+  {"id": "step-2", "command": "pytest", "args": ["-q"]},
+  {"id": "smoke", "runtime": "browser", "command": "python", "args": [], "url": "https://example.com"}
+]
+"""
+```
 
-### 4. Start the dashboard
+Or ask in plain language: *Start the AFK overseer with these tasks…* and list the same
+`id` / `command` / `args` (optional `runtime` + `url` for browser smoke).
+
+1. The agent should call `start_afk_overseer` with:
+  - `workspace` = **this project’s absolute path** (not the Solari clone)
+  - your `tasks` array
+2. Step away. The overseer runs steps on Solari; on failure it pauses for repair in
+  the same Cursor chat (`resume_queue` after fixes). Optional live UI: [http://localhost:3000](http://localhost:3000)
+
+**Task shape:** `id` (required), `command` (`python` | `pytest` | `npm` | `node`),
+`args` (list), optional `runtime`: `"sandbox"` (default) or `"browser"` (+ `url`).
+
+**Kill switch:** create `.overseer.stop` in the project root.
+
+## Quick start (developers of this repo)
+
+### 1. Install MCP + daemon
+
+```bash
+cd packages/sleeper-mcp && pip install -e . -r requirements.txt
+cd ../sleeper-daemon && pip install -e . -r requirements.txt
+```
+
+Or run the one-time installer above.
+
+### 2. Solari API key
+
+In `~/.cursor/mcp.json` under `sleeper-agent-mcp.env`, set `SOLARI_API_KEY` from
+[console.getsolari.com](https://console.getsolari.com). Use `SLEEPER_HOME` for this clone;
+do **not** pin task runs with `SLEEPER_WORKSPACE` to Solari.
+
+### 3. Restart Cursor MCP
+
+Reload so `sleeper-agent-mcp` picks up the config.
+
+### 4. Optional dashboard
 
 ```bash
 cd apps/overseer-dashboard
@@ -44,35 +99,26 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000)
 
-### 5. Start an overseer session from Cursor
+### 5. Smoke from Cursor
 
-Ask the agent to call `start_afk_overseer` with a task list, for example:
+Ask the agent (with this repo or any project open) to call `start_afk_overseer` with
+`workspace` set to that project and a small task list, for example:
 
 ```json
 {
   "tasks": [
-    { "id": "hello", "command": "python", "args": ["-c", "print('overseer ok')"] },
-    {
-      "id": "smoke",
-      "runtime": "browser",
-      "command": "python",
-      "args": [],
-      "url": "https://example.com"
-    }
+    { "id": "hello", "command": "python", "args": ["-c", "print('overseer ok')"] }
   ],
+  "workspace": "C:/path/to/your/project",
   "label": "demo"
 }
 ```
 
-Watch progress on the dashboard and in `get_queue_status`.
+Watch progress via `get_queue_status` or the dashboard.
 
-Full testing steps: [docs/TESTING.md](docs/TESTING.md)
-
-Pre-publish verification: [docs/PUBLISH_CHECKLIST.md](docs/PUBLISH_CHECKLIST.md)
-
-Repair-loop demo (intentional failure → fix → resume): [docs/REPAIR_LOOP_DEMO.md](docs/REPAIR_LOOP_DEMO.md)
+Local preflight (optional):
 
 ```bash
 python packages/sleeper-mcp/scripts/preflight.py --live
@@ -80,7 +126,7 @@ python packages/sleeper-mcp/scripts/preflight.py --live
 
 ---
 
-# Solari Cookbook
+# Solari Cookbook (origin forked)
 
 Short, runnable examples for [Solari](https://getsolari.com) — cloud browsers,
 sandboxes, and desktops behind one API key.
@@ -93,27 +139,33 @@ past. Copy one into your project and change the parts you care about.
 
 ### Cloud browser
 
-| Example | Language | What it shows |
-| --- | --- | --- |
-| [browser-quickstart-ts](examples/browser-quickstart-ts) | TypeScript | Launch a browser, open a page, read it |
-| [browser-quickstart-py](examples/browser-quickstart-py) | Python | Launch a browser, open a page, read it |
-| [browser-stealth-proxy-ts](examples/browser-stealth-proxy-ts) | TypeScript | Stealth mode + residential proxy egress |
-| [browser-profiles-ts](examples/browser-profiles-ts) | TypeScript | Log in once, reuse the session forever |
-| [browser-session-recording-py](examples/browser-session-recording-py) | Python | Record a session, download the replay |
+
+| Example                                                               | Language   | What it shows                           |
+| --------------------------------------------------------------------- | ---------- | --------------------------------------- |
+| [browser-quickstart-ts](examples/browser-quickstart-ts)               | TypeScript | Launch a browser, open a page, read it  |
+| [browser-quickstart-py](examples/browser-quickstart-py)               | Python     | Launch a browser, open a page, read it  |
+| [browser-stealth-proxy-ts](examples/browser-stealth-proxy-ts)         | TypeScript | Stealth mode + residential proxy egress |
+| [browser-profiles-ts](examples/browser-profiles-ts)                   | TypeScript | Log in once, reuse the session forever  |
+| [browser-session-recording-py](examples/browser-session-recording-py) | Python     | Record a session, download the replay   |
+
 
 ### Sandbox
 
-| Example | Language | What it shows |
-| --- | --- | --- |
-| [sandbox-quickstart-ts](examples/sandbox-quickstart-ts) | TypeScript | Run a command, write and read files |
-| [sandbox-code-interpreter-py](examples/sandbox-code-interpreter-py) | Python | Stateful Python kernel for agent loops |
-| [sandbox-port-preview-ts](examples/sandbox-port-preview-ts) | TypeScript | Expose a server in the VM on a public URL |
+
+| Example                                                             | Language   | What it shows                             |
+| ------------------------------------------------------------------- | ---------- | ----------------------------------------- |
+| [sandbox-quickstart-ts](examples/sandbox-quickstart-ts)             | TypeScript | Run a command, write and read files       |
+| [sandbox-code-interpreter-py](examples/sandbox-code-interpreter-py) | Python     | Stateful Python kernel for agent loops    |
+| [sandbox-port-preview-ts](examples/sandbox-port-preview-ts)         | TypeScript | Expose a server in the VM on a public URL |
+
 
 ### Desktop
 
-| Example | Language | What it shows |
-| --- | --- | --- |
-| [desktop-computer-use-py](examples/desktop-computer-use-py) | Python | Screenshot, click, and type on a Linux GUI |
+
+| Example                                                     | Language | What it shows                              |
+| ----------------------------------------------------------- | -------- | ------------------------------------------ |
+| [desktop-computer-use-py](examples/desktop-computer-use-py) | Python   | Screenshot, click, and type on a Linux GUI |
+
 
 ## Running an example
 
@@ -133,29 +185,29 @@ product bills to the same balance.
 ## Which product do I want?
 
 - **Cloud browser** — you need a *web page*: scraping, testing, filling forms,
-  anything Playwright or Puppeteer would do locally. Adds stealth, managed
-  proxies, captcha solving, profiles, and session recording.
+anything Playwright or Puppeteer would do locally. Adds stealth, managed
+proxies, captcha solving, profiles, and session recording.
 - **Sandbox** — you need to *run code*: an LLM's Python, an untrusted build, a
-  data job. A headless microVM that boots from a snapshot in about a second.
+data job. A headless microVM that boots from a snapshot in about a second.
 - **Desktop** — you need a *screen*: computer-use agents, GUI apps, anything
-  that has to be clicked. A sandbox plus X11 and a live VNC stream.
+that has to be clicked. A sandbox plus X11 and a live VNC stream.
 
 ## Gotchas the examples encode
 
 Things that cost you an afternoon if you meet them cold:
 
-- **TypeScript: call `await solari.close()`.** The browser client keeps a
-  loopback proxy open for connection retries. Skip the close and your script
-  prints its output and then hangs forever instead of exiting.
+- **TypeScript: call** `await solari.close()`**.** The browser client keeps a
+loopback proxy open for connection retries. Skip the close and your script
+prints its output and then hangs forever instead of exiting.
 - **Recording is per session, not per account.** Pass `recording: true` when you
-  create the session; without it the replay endpoint 404s forever. The upload is
-  async after release, so poll for ~30s before giving up.
+create the session; without it the replay endpoint 404s forever. The upload is
+async after release, so poll for ~30s before giving up.
 - **Sandbox commands are not shell-interpreted.** `run("ls -la")` looks for a
-  binary named `ls -la`. Put argv in `args`, or run `sh -c` explicitly.
-- **`kill()`, not `close()`, ends a VM.** `close()` drops your local control
-  channel; the VM keeps running until its idle timeout.
-- **`timeoutMs` is a rolling idle window**, not a hard deadline — it resets on
-  every use.
+binary named `ls -la`. Put argv in `args`, or run `sh -c` explicitly.
+- `kill()`**, not** `close()`**, ends a VM.** `close()` drops your local control
+channel; the VM keeps running until its idle timeout.
+- `timeoutMs` **is a rolling idle window**, not a hard deadline — it resets on
+every use.
 
 ## Links
 
