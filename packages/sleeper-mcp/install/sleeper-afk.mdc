@@ -1,0 +1,24 @@
+---
+description: Sleeper AFK overseer — always target the open project, never the Solari install
+alwaysApply: true
+---
+
+# Sleeper AFK (global install)
+
+Sleeper/Solari is installed **once** on this machine (`SLEEPER_HOME` in `~/.cursor/mcp.json`).
+User projects do **not** contain Sleeper source.
+
+## When the user uses `Sleeper-call{...}` or asks to start the AFK overseer
+
+1. Set **`workspace` to this conversation’s project root** (the folder open in the Agent window or IDE) — absolute path.
+2. Never pass `SLEEPER_HOME` / the Solari clone as `workspace` unless that clone is the project being edited.
+3. Call `start_afk_overseer` with that `workspace` (MCP auto-starts `sleeper_daemon watch` when needed).
+4. Open the dashboard with in-IDE browser / `open_resource` to `http://localhost:3000/` (not Chrome).
+5. On repair prompts: fix files in **that same workspace**, then `resume_queue` with the given `queue_id`.
+6. Write status to `<workspace>/.sleeper/cursor_last_response.txt` when the kickoff/repair prompt asks for it.
+
+## Do not
+
+- Copy `packages/sleeper-*` into user repos
+- Hard-code Solari as the task workspace
+- Run `cursor --classic` when the IDE + Agent panel for this project is already open

@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "sleeper-agent-mcp": {
+      "command": "python",
+      "args": ["-m", "sleeper_agent_mcp.server"],
+      "cwd": "D:/path/to/Solari/packages/sleeper-mcp",
+      "env": {
+        "SLEEPER_HOME": "D:/path/to/Solari",
+        "PYTHONPATH": "D:/path/to/Solari/packages/sleeper-mcp;D:/path/to/Solari/packages/sleeper-daemon",
+        "SLEEPER_BACKEND": "solari",
+        "SOLARI_API_KEY": "slr_live_YOUR_KEY_HERE",
+        "SLEEPER_ORCHESTRATOR_TIMEOUT": "7200",
+        "SLEEPER_TASK_TIMEOUT": "600",
+        "SLEEPER_MAX_CONCURRENT": "2",
+        "SLEEPER_MEMORY_THRESHOLD": "0.20",
+        "SLEEPER_TASK_RAM": "4g",
+        "SLEEPER_DOCKER_IMAGE": "python:3.11-slim",
+        "SLEEPER_CURSOR_WINDOW_TITLE": "Cursor"
+      }
+    }
+  }
+}
