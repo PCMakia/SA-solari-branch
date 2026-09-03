@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sleeper-daemon"
+version = "0.1.0"
+description = "Local Sleeper daemon — drives Cursor chat for the AFK overseer"
+requires-python = ">=3.11"
+dependencies = [
+    "pyautogui>=0.9.54",
+    "pygetwindow>=0.0.9",
+    "pyperclip>=1.8.2",
+]
+
+[project.scripts]
+sleeper-daemon = "sleeper_daemon.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sleeper_daemon*"]
