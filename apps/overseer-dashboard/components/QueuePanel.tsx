@@ -1,31 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-
 import { queueSummaryLabel } from "@/lib/queue-focus";
-import type { OverseerSnapshot, QueueRecord } from "@/lib/types";
-
-function activeQueue(snapshot: OverseerSnapshot | null): QueueRecord | null {
-  if (!snapshot?.active_queue_id) return null;
-  return (
-    snapshot.queues.find((q) => q.id === snapshot.active_queue_id) ?? null
-  );
-}
+import { useFocusedQueue } from "@/lib/use-focused-queue";
 
 export function QueuePanel() {
-  const [snapshot, setSnapshot] = useState<OverseerSnapshot | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await fetch("/api/state");
-      if (res.ok) setSnapshot(await res.json());
-    };
-    void load();
-    const timer = setInterval(load, 1500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const queue = useMemo(() => activeQueue(snapshot), [snapshot]);
+  const { snapshot, queue, preferredQueueId } = useFocusedQueue();
   const progress =
     queue && queue.tasks.length > 0
       ? Math.round((queue.current_step_index / queue.tasks.length) * 100)
@@ -38,13 +17,22 @@ export function QueuePanel() {
           Queue
         </h2>
         <span className="text-xs text-slate-500">
-          {snapshot?.completed_steps ?? 0}/{snapshot?.total_steps ?? 0} steps
+          {queue
+            ? `${queue.history.filter((h) => h.status === "success").length}/${queue.tasks.length} steps`
+            : `${snapshot?.completed_steps ?? 0}/${snapshot?.total_steps ?? 0} steps`}
         </span>
       </div>
 
       {!queue ? (
         <p className="mt-4 text-sm text-slate-500">
           No active overseer session. Start one from Cursor.
+          {preferredQueueId ? (
+            <>
+              <br />
+              Waiting for queue <span className="font-mono text-xs">{preferredQueueId}</span>
+              …
+            </>
+          ) : null}
         </p>
       ) : (
         <>
@@ -53,9 +41,11 @@ export function QueuePanel() {
           </p>
           <p className="text-xs text-slate-500">
             Status {queue.status}
-            {snapshot && snapshot.queues.length > 1
-              ? ` · showing latest of ${snapshot.queues.length} in state file`
-              : ""}
+            {preferredQueueId
+              ? " · deep-linked from Sleeper"
+              : snapshot && snapshot.queues.length > 1
+                ? ` · showing latest of ${snapshot.queues.length} in state file`
+                : ""}
           </p>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40">
             <div

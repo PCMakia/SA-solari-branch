@@ -13,6 +13,18 @@ export function sortQueuesByRecency(queues: QueueRecord[]): QueueRecord[] {
   return [...queues].sort((a, b) => queueLastActivity(b) - queueLastActivity(a));
 }
 
+/** Prefer an explicit deep-linked queue id when present in state. */
+export function resolveFocusedQueue(
+  queues: QueueRecord[],
+  preferredQueueId: string | null | undefined,
+): QueueRecord | null {
+  if (preferredQueueId) {
+    const match = queues.find((q) => q.id === preferredQueueId);
+    if (match) return match;
+  }
+  return pickActiveQueue(queues);
+}
+
 /** Focus the queue the user most likely cares about right now. */
 export function pickActiveQueue(queues: QueueRecord[]): QueueRecord | null {
   if (queues.length === 0) return null;

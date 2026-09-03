@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { queueSummaryLabel } from "@/lib/queue-focus";
-import type { OverseerSnapshot } from "@/lib/types";
+import { useFocusedQueue } from "@/lib/use-focused-queue";
 
 const statusColors: Record<string, string> = {
   IDLE: "bg-slate-700 text-slate-200",
@@ -15,19 +13,8 @@ const statusColors: Record<string, string> = {
 };
 
 export function Header() {
-  const [snapshot, setSnapshot] = useState<OverseerSnapshot | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await fetch("/api/state");
-      if (res.ok) setSnapshot(await res.json());
-    };
-    void load();
-    const timer = setInterval(load, 1500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const status = snapshot?.aggregate_status ?? "IDLE";
+  const { snapshot, queue, preferredQueueId } = useFocusedQueue();
+  const status = queue?.status ?? snapshot?.aggregate_status ?? "IDLE";
 
   return (
     <header className="panel flex flex-wrap items-center justify-between gap-4 p-5">
@@ -48,13 +35,10 @@ export function Header() {
         <span className="text-slate-400">
           Backend: <span className="text-accent">{snapshot?.backend ?? "—"}</span>
         </span>
-        {snapshot?.active_queue_id ? (
+        {queue ? (
           <span className="text-xs text-slate-500">
-            {snapshot.queues.find((q) => q.id === snapshot.active_queue_id)
-              ? queueSummaryLabel(
-                  snapshot.queues.find((q) => q.id === snapshot.active_queue_id)!,
-                )
-              : "latest session"}
+            {queueSummaryLabel(queue)}
+            {preferredQueueId ? " · deep-linked" : ""}
           </span>
         ) : null}
       </div>

@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 
 const PREFERRED_SERVER_KEYS = ["sleeper-agent-mcp", "sleeper-overseer-mcp"] as const;
 const SLEEPER_MODULE_MARKER = "sleeper_agent_mcp.server";
-const REQUIRED_ENV_KEYS = ["CURSOR_API_KEY"] as const;
+const REQUIRED_ENV_KEYS = [] as const;
 const SOLARI_ENV_KEYS = ["SOLARI_API_KEY"] as const;
 
 export type McpReloadPreview = {

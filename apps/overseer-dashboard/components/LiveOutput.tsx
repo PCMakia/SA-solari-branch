@@ -1,32 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-
-import type { OverseerSnapshot, QueueRecord } from "@/lib/types";
-
-function activeQueue(snapshot: OverseerSnapshot | null): QueueRecord | null {
-  if (!snapshot?.active_queue_id) return snapshot?.queues[0] ?? null;
-  return (
-    snapshot.queues.find((q) => q.id === snapshot.active_queue_id) ??
-    snapshot.queues[0] ??
-    null
-  );
-}
+import { useFocusedQueue } from "@/lib/use-focused-queue";
 
 export function LiveOutput() {
-  const [snapshot, setSnapshot] = useState<OverseerSnapshot | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await fetch("/api/state");
-      if (res.ok) setSnapshot(await res.json());
-    };
-    void load();
-    const timer = setInterval(load, 1500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const queue = useMemo(() => activeQueue(snapshot), [snapshot]);
+  const { queue } = useFocusedQueue();
   const latest = queue?.history[queue.history.length - 1];
 
   const lines = queue
