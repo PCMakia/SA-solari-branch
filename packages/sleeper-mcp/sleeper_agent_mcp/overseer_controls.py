@@ -12,7 +12,8 @@ from typing import Any
 from sleeper_agent_mcp.workspace_scope import resolve_target_workspace
 
 STOP_FILE_NAME = ".overseer.stop"
-FAILURE_FILE_NAME = ".overseer_failure.json"
+FAILURE_FILE_NAME = ".overseer_failure.md"
+FAILURE_JSON_LEGACY = ".overseer_failure.json"
 
 DEFAULT_REPAIR_TIMEOUT_SECONDS = int(os.environ.get("SLEEPER_REPAIR_TIMEOUT", "900"))
 DEFAULT_ORCHESTRATOR_TIMEOUT_SECONDS = int(
@@ -107,21 +108,70 @@ def write_failure_artifact(
     max_retries: int,
     last_error: dict[str, Any] | None,
     repair_history: list[dict[str, Any]] | None = None,
+    tasks: list[dict[str, Any]] | None = None,
 ) -> Path:
-    """Persist terminal failure state to `.overseer_failure.json`."""
+    """Persist terminal failure state to `.overseer_failure.md`."""
     path = failure_file_path(workspace)
-    payload = {
-        "status": "ABORTED",
-        "queue_id": queue_id,
-        "label": label,
-        "failed_task_id": failed_task_id,
-        "retry_count": retry_count,
-        "max_retries": max_retries,
-        "last_error": last_error,
-        "repair_history": repair_history or [],
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    last_error = last_error or {}
+    command = last_error.get("execution_command") or last_error.get("command")
+    if not command and tasks:
+        for task in tasks:
+            if task.get("id") == failed_task_id:
+                args = task.get("args") or []
+                command = " ".join([str(task.get("command", "")), *[str(a) for a in args]]).strip()
+                break
+
+    lines = [
+        "# Overseer Failure Report",
+        "",
+        f"- **Status:** ABORTED",
+        f"- **Timestamp:** {timestamp}",
+        f"- **Queue ID:** `{queue_id}`",
+        f"- **Label:** {label or '(none)'}",
+        f"- **Failed step:** `{failed_task_id}`",
+        f"- **Command:** `{command or '(unknown)'}`",
+        f"- **Repair attempts:** {retry_count} / {max_retries}",
+        "",
+        "## Error traceback",
+        "",
+        "```",
+        str(last_error.get("traceback") or last_error.get("stderr") or "(no traceback)"),
+        "```",
+        "",
+        "## Repair history",
+        "",
+    ]
+    history = repair_history or []
+    if not history:
+        lines.append("_No Cursor repair attempts recorded._")
+    else:
+        for index, entry in enumerate(history, start=1):
+            lines.extend(
+                [
+                    f"### Attempt {index}",
+                    "",
+                    f"- **Task:** `{entry.get('task_id', failed_task_id)}`",
+                    f"- **Timestamp:** {entry.get('timestamp', '(unknown)')}",
+                    f"- **Cursor response excerpt:**",
+                    "",
+                    "```",
+                    str(entry.get("cursor_response") or entry.get("message") or "(empty)"),
+                    "```",
+                    "",
+                ]
+            )
+
+    lines.extend(
+        [
+            "## Workspace state",
+            "",
+            f"- **Workspace:** `{resolve_target_workspace(workspace)}`",
+            f"- **Stop file present:** `{is_stop_requested(workspace)}`",
+            "",
+        ]
+    )
+    path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
 

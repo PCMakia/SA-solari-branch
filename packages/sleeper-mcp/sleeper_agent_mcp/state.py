@@ -97,6 +97,7 @@ class QueueRecord:
     repair_history: list[dict[str, Any]] = field(default_factory=list)
     repair_timeout_seconds: int | None = None
     orchestrator_timeout_seconds: int | None = None
+    afk_mode: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         payload = {
@@ -124,6 +125,8 @@ class QueueRecord:
             payload["repair_timeout_seconds"] = self.repair_timeout_seconds
         if self.orchestrator_timeout_seconds is not None:
             payload["orchestrator_timeout_seconds"] = self.orchestrator_timeout_seconds
+        if self.afk_mode:
+            payload["afk_mode"] = True
         return payload
 
     @classmethod
@@ -148,6 +151,7 @@ class QueueRecord:
             repair_history=list(data.get("repair_history", [])),
             repair_timeout_seconds=data.get("repair_timeout_seconds"),
             orchestrator_timeout_seconds=data.get("orchestrator_timeout_seconds"),
+            afk_mode=bool(data.get("afk_mode", False)),
         )
 
 
@@ -196,6 +200,7 @@ class StateManager:
         repair_mode: str | None = None,
         repair_timeout_seconds: int | None = None,
         orchestrator_timeout_seconds: int | None = None,
+        afk_mode: bool = False,
     ) -> QueueRecord:
         queue_id = str(uuid.uuid4())
         workspace_resolved = str(resolve_path(workspace))
@@ -214,6 +219,7 @@ class StateManager:
             repair_mode=repair_mode,
             repair_timeout_seconds=repair_timeout_seconds,
             orchestrator_timeout_seconds=orchestrator_timeout_seconds,
+            afk_mode=afk_mode,
         )
         with self._lock:
             self._queues[queue_id] = record
@@ -255,6 +261,14 @@ class StateManager:
                 record.retry_counts[task.id] = 0
 
         return self.modify_queue(queue_id, _append)
+
+    def replace_tasks(self, queue_id: str, tasks: list[TaskSpec]) -> QueueRecord | None:
+        def _replace(record: QueueRecord) -> None:
+            record.tasks = tasks
+            for task in tasks:
+                record.retry_counts.setdefault(task.id, 0)
+
+        return self.modify_queue(queue_id, _replace)
 
     def list_queues(self) -> list[QueueRecord]:
         with self._lock:
