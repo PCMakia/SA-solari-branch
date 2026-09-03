@@ -14,7 +14,7 @@ PREFERRED_SERVER_KEYS = (
     "sleeper-overseer-mcp",
 )
 SLEEPER_MODULE_MARKER = "sleeper_agent_mcp.server"
-REQUIRED_ENV_KEYS = ("CURSOR_API_KEY",)
+REQUIRED_ENV_KEYS: tuple[str, ...] = ()
 SOLARI_BACKEND_ENV_KEYS = ("SOLARI_API_KEY",)
 
 _last_reload: dict[str, Any] | None = None
